@@ -1,0 +1,112 @@
+name: Build wheels
+
+on:
+  push:
+    tags:
+      - "v*"
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      llvm_version:
+        description: "LLVM major version (blank = all)"
+        required: false
+        default: ""
+
+jobs:
+  vendor:
+    name: Vendor LLVM ${{ matrix.llvm_version }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        llvm_version: [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Vendor LLVM Demangle
+        run: python vendor_llvm.py --llvm-version ${{ matrix.llvm_version }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vendor-llvm${{ matrix.llvm_version }}
+          path: vendor/
+          retention-days: 1
+
+  build_wheels:
+    name: Wheels (LLVM ${{ matrix.llvm_version }}, ${{ matrix.os }})
+    needs: vendor
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        llvm_version: [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
+        os: [ubuntu-latest, macos-13, macos-14, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: vendor-llvm${{ matrix.llvm_version }}
+          path: vendor/
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install cibuildwheel
+        run: pip install cibuildwheel
+      - name: Build wheels
+        env:
+          LLVM_VERSION: ${{ matrix.llvm_version }}
+          PACKAGE_VERSION: "${{ matrix.llvm_version }}.0.0"
+          CIBW_ENVIRONMENT: >-
+            LLVM_VERSION=${{ matrix.llvm_version }}
+            PACKAGE_VERSION=${{ matrix.llvm_version }}.0.0
+        run: cibuildwheel --output-dir wheelhouse
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-llvm${{ matrix.llvm_version }}-${{ matrix.os }}
+          path: wheelhouse/*.whl
+
+  build_sdist:
+    name: sdist (LLVM ${{ matrix.llvm_version }})
+    needs: vendor
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        llvm_version: [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: vendor-llvm${{ matrix.llvm_version }}
+          path: vendor/
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build sdist
+        env:
+          LLVM_VERSION: ${{ matrix.llvm_version }}
+          PACKAGE_VERSION: "${{ matrix.llvm_version }}.0.0"
+        run: pip install build && python -m build --sdist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdist-llvm${{ matrix.llvm_version }}
+          path: dist/*.tar.gz
+
+  publish:
+    name: Publish to PyPI
+    needs: [build_wheels, build_sdist]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          merge-multiple: true
+          path: dist/
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: sdist-*
+          merge-multiple: true
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
