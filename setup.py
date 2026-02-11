@@ -11,7 +11,7 @@ long_description = (this_directory / "README.md").read_text()
 
 # LLVM version from env (default: 15)
 LLVM_MAJOR = int(os.environ.get("LLVM_VERSION", "15"))
-PACKAGE_VERSION = os.environ.get("PACKAGE_VERSION", f"{LLVM_MAJOR}.0.0")
+PACKAGE_VERSION = os.environ.get("PACKAGE_VERSION", f"{LLVM_MAJOR}")
 
 # Locate vendored source
 vendor_dir = this_directory / "vendor" / f"llvm{LLVM_MAJOR}"

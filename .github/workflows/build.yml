@@ -55,10 +55,10 @@ jobs:
       - name: Build wheels
         env:
           LLVM_VERSION: ${{ matrix.llvm_version }}
-          PACKAGE_VERSION: "${{ matrix.llvm_version }}.0.0"
+          PACKAGE_VERSION: "${{ matrix.llvm_version }}"
           CIBW_ENVIRONMENT: >-
             LLVM_VERSION=${{ matrix.llvm_version }}
-            PACKAGE_VERSION=${{ matrix.llvm_version }}.0.0
+            PACKAGE_VERSION=${{ matrix.llvm_version }}
           CIBW_ARCHS_MACOS: "x86_64 arm64"
         run: cibuildwheel --output-dir wheelhouse
       - uses: actions/upload-artifact@v4
@@ -85,7 +85,7 @@ jobs:
       - name: Build sdist
         env:
           LLVM_VERSION: ${{ matrix.llvm_version }}
-          PACKAGE_VERSION: "${{ matrix.llvm_version }}.0.0"
+          PACKAGE_VERSION: "${{ matrix.llvm_version }}"
         run: pip install build && python -m build --sdist
       - uses: actions/upload-artifact@v4
         with:
