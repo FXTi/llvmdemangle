@@ -10,8 +10,6 @@ import urllib.request
 from pathlib import Path
 
 LLVM_VERSIONS = {
-    9: "9.0.1",
-    10: "10.0.1",
     11: "11.1.0",
     12: "12.0.1",
     13: "13.0.1",
