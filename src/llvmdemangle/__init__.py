@@ -1,13 +1,7 @@
 import importlib
-from importlib.metadata import version, PackageNotFoundError
 
 _ALL_VERSIONS = list(range(11, 22))
 DEFAULT_VERSION = _ALL_VERSIONS[-1]
-
-try:
-    __version__ = version("llvm-demangle-fxti")
-except PackageNotFoundError:
-    __version__ = "0.0.0"
 
 # Detect which backends are actually installed
 SUPPORTED_VERSIONS = []
