@@ -50,7 +50,6 @@ NAME_CHOPPING_DATA = [
     ("_ZN1SIJicfEE3mfnIJjcdEEEvicfDpT_",
      "S<int, char, float>", "mfn", "void",
      "(int, char, float, unsigned int, char, double)"),
-    # Fixed-point types
     # Fixed-point types (LLVM >= 20 only)
 ]
 
@@ -91,8 +90,7 @@ class TestPartialDemangleNameChopping:
         ids=[t[0] for t in NAME_CHOPPING_DATA],
     )
     def test_name_chopping(self, mangled, context, base_name, return_type, params):
-        d = llvmdemangle.ItaniumPartialDemangler()
-        assert d.parse(mangled) is True, f"Failed to parse {mangled}"
+        d = llvmdemangle.ItaniumPartialDemangler(mangled)
         assert d.is_function is True
         assert d.is_data is False
         assert d.is_special_name is False
@@ -108,8 +106,7 @@ class TestPartialDemangleNameChopping:
         ids=[t[0] for t in FIXED_POINT_DATA],
     )
     def test_name_chopping_fixed_point(self, mangled, context, base_name, return_type, params):
-        d = llvmdemangle.ItaniumPartialDemangler()
-        assert d.parse(mangled) is True, f"Failed to parse {mangled}"
+        d = llvmdemangle.ItaniumPartialDemangler(mangled)
         assert d.is_function is True
         assert d.is_data is False
         assert d.is_special_name is False
@@ -123,28 +120,24 @@ class TestPartialDemangleNameMeta:
     """Ported from TEST(PartialDemanglerTest, TestNameMeta)."""
 
     def test_const_member_function(self):
-        d = llvmdemangle.ItaniumPartialDemangler()
-        assert d.parse("_ZNK1f1gEv") is True
+        d = llvmdemangle.ItaniumPartialDemangler("_ZNK1f1gEv")
         assert d.is_function is True
         assert d.has_function_qualifiers is True
         assert d.is_special_name is False
         assert d.is_data is False
 
     def test_no_qualifiers(self):
-        d = llvmdemangle.ItaniumPartialDemangler()
-        assert d.parse("_Z1fv") is True
+        d = llvmdemangle.ItaniumPartialDemangler("_Z1fv")
         assert d.has_function_qualifiers is False
 
     def test_vtable_special_name(self):
-        d = llvmdemangle.ItaniumPartialDemangler()
-        assert d.parse("_ZTV1S") is True
+        d = llvmdemangle.ItaniumPartialDemangler("_ZTV1S")
         assert d.is_special_name is True
         assert d.is_data is False
         assert d.is_function is False
 
     def test_structured_binding_data(self):
-        d = llvmdemangle.ItaniumPartialDemangler()
-        assert d.parse("_ZN1aDC1a1b1cEE") is True
+        d = llvmdemangle.ItaniumPartialDemangler("_ZN1aDC1a1b1cEE")
         assert d.is_function is False
         assert d.is_special_name is False
         assert d.is_data is True
@@ -163,8 +156,7 @@ class TestPartialDemangleCtorOrDtor:
         "_ZN2ns1AD1Ev",      # ns::A::~A()
     ])
     def test_is_ctor_or_dtor(self, mangled):
-        d = llvmdemangle.ItaniumPartialDemangler()
-        assert d.parse(mangled) is True
+        d = llvmdemangle.ItaniumPartialDemangler(mangled)
         assert d.is_ctor_or_dtor is True
 
     @pytest.mark.parametrize("mangled", [
@@ -172,8 +164,7 @@ class TestPartialDemangleCtorOrDtor:
         "_ZN1A1gIiEEvT_",  # void A::g<int>(int)
     ])
     def test_is_not_ctor_or_dtor(self, mangled):
-        d = llvmdemangle.ItaniumPartialDemangler()
-        assert d.parse(mangled) is True
+        d = llvmdemangle.ItaniumPartialDemangler(mangled)
         assert d.is_ctor_or_dtor is False
 
 
@@ -181,22 +172,19 @@ class TestPartialDemangleMisc:
     """Ported from TEST(PartialDemanglerTest, TestMisc)."""
 
     def test_invalid_mangling(self):
-        d = llvmdemangle.ItaniumPartialDemangler()
-        assert d.parse("Not a mangled name!") is False
+        with pytest.raises(ValueError):
+            llvmdemangle.ItaniumPartialDemangler("Not a mangled name!")
 
-    def test_reparse(self):
-        """Verify re-parsing a different symbol works correctly."""
-        d = llvmdemangle.ItaniumPartialDemangler()
-        assert d.parse("_Z1fv") is True
-        assert d.is_function is True
-        assert d.parse("_Z1g") is True
-        assert d.is_function is False  # _Z1g is data, not a function
+    def test_different_symbols(self):
+        """Verify parsing different symbols produces correct results."""
+        d1 = llvmdemangle.ItaniumPartialDemangler("_Z1fv")
+        assert d1.is_function is True
+        d2 = llvmdemangle.ItaniumPartialDemangler("_Z1g")
+        assert d2.is_function is False  # _Z1g is data, not a function
 
     def test_data_not_function(self):
-        d = llvmdemangle.ItaniumPartialDemangler()
-        assert d.parse("_Z1g") is True
+        d = llvmdemangle.ItaniumPartialDemangler("_Z1g")
         assert d.is_function is False
-        # function_name should be None for non-functions
         assert d.function_name is None
 
 
@@ -204,19 +192,16 @@ class TestPartialDemanglePrintCases:
     """Ported from TEST(PartialDemanglerTest, TestPrintCases)."""
 
     def test_short_context_name(self):
-        d = llvmdemangle.ItaniumPartialDemangler()
-        assert d.parse("_ZN1a1bEv") is True
+        d = llvmdemangle.ItaniumPartialDemangler("_ZN1a1bEv")
         assert d.function_decl_context == "a"
 
     def test_full_demangle(self):
-        d = llvmdemangle.ItaniumPartialDemangler()
-        assert d.parse("_ZN1a1b1cIiiiEEvm") is True
+        d = llvmdemangle.ItaniumPartialDemangler("_ZN1a1b1cIiiiEEvm")
         assert d.full_name == "void a::b::c<int, int, int>(unsigned long)"
 
     def test_non_function_returns_none(self):
-        """a::c is data, not a function — function_name should be None."""
-        d = llvmdemangle.ItaniumPartialDemangler()
-        assert d.parse("_ZN1a1cE") is True
+        """a::c is data, not a function -- function_name should be None."""
+        d = llvmdemangle.ItaniumPartialDemangler("_ZN1a1cE")
         assert d.function_name is None
 
 

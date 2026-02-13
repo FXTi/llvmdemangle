@@ -286,15 +286,16 @@ cdef class ItaniumPartialDemangler:
 
     Usage::
 
-        d = ItaniumPartialDemangler()
-        if d.parse("_ZN3Foo3barEid"):
-            print(d.full_name)           # 'Foo::bar(int, double)'
-            print(d.function_base_name)  # 'bar'
-            print(d.function_parameters) # '(int, double)'
-            print(d.is_function)         # True
+        d = ItaniumPartialDemangler("_ZN3Foo3barEid")
+        print(d.full_name)           # 'Foo::bar(int, double)'
+        print(d.function_base_name)  # 'bar'
+        print(d.function_parameters) # '(int, double)'
+        print(d.is_function)         # True
+
+    Raises:
+        ValueError: If the mangled name cannot be parsed.
     """
     cdef CppItaniumPartialDemangler _impl
-    cdef bint _parsed
     # Cached string results (extracted in batch at parse time)
     cdef object _full_name
     cdef object _base_name
@@ -303,37 +304,18 @@ cdef class ItaniumPartialDemangler:
     cdef object _params
     cdef object _return_type
 
-    def __cinit__(self):
-        self._parsed = False
-        self._full_name = None
-        self._base_name = None
-        self._decl_context = None
-        self._func_name = None
-        self._params = None
-        self._return_type = None
-
-    def parse(self, name):
-        """Parse a mangled name into the internal AST.
-
-        Args:
-            name: Itanium-mangled symbol name.
-
-        Returns:
-            True on success, False on parse error.
-        """
+    def __cinit__(self, name):
         cdef bytes b = name.encode("utf-8")
         cdef cbool err = self._impl.partialDemangle(b)
-        self._parsed = not err
-        # Reset cached values
+        if err:
+            raise ValueError(f"Failed to parse mangled name: {name}")
         self._full_name = None
         self._base_name = None
         self._decl_context = None
         self._func_name = None
         self._params = None
         self._return_type = None
-        if self._parsed:
-            self._extract_all()
-        return self._parsed
+        self._extract_all()
 
     cdef void _extract_all(self):
         """Extract all string properties in a single C++ call."""
@@ -355,8 +337,6 @@ cdef class ItaniumPartialDemangler:
     @property
     def full_name(self):
         """Full demangled name, e.g. 'void Foo::bar<int>(int)'."""
-        if not self._parsed:
-            return None
         return self._full_name
 
     @property
@@ -364,10 +344,8 @@ cdef class ItaniumPartialDemangler:
         """Base name without namespace or template args.
 
         e.g. 'bar' for '_ZN3Foo3barIiEEvT_' (Foo::bar<int>).
-        Returns None if not parsed or not a function.
+        Returns None if not a function.
         """
-        if not self._parsed:
-            return None
         return self._base_name
 
     @property
@@ -375,40 +353,31 @@ cdef class ItaniumPartialDemangler:
         """Namespace/class context.
 
         e.g. 'Foo' for 'Foo::bar'. Empty string for top-level functions.
-        Returns None if not parsed.
         """
-        if not self._parsed:
-            return None
         return self._decl_context
 
     @property
     def function_name(self):
         """Full function name with context and template args.
 
-        e.g. 'Foo::bar<int>'. Returns None if not parsed.
+        e.g. 'Foo::bar<int>'. Returns None if not a function.
         """
-        if not self._parsed:
-            return None
         return self._func_name
 
     @property
     def function_parameters(self):
         """Parameter types string.
 
-        e.g. '(int, double)'. Returns None if not parsed.
+        e.g. '(int, double)'. Returns None if not a function.
         """
-        if not self._parsed:
-            return None
         return self._params
 
     @property
     def function_return_type(self):
         """Return type string.
 
-        e.g. 'void'. Returns None or empty string if not applicable.
+        e.g. 'void'. Empty string if not applicable.
         """
-        if not self._parsed:
-            return None
         return self._return_type
 
     @property
@@ -417,29 +386,21 @@ cdef class ItaniumPartialDemangler:
 
         This implies the function is a non-static member function.
         """
-        if not self._parsed:
-            return False
         return self._impl.hasFunctionQualifiers()
 
     @property
     def is_ctor_or_dtor(self):
         """Whether the symbol describes a constructor or destructor."""
-        if not self._parsed:
-            return False
         return self._impl.isCtorOrDtor()
 
     @property
     def is_function(self):
         """Whether the symbol describes a function."""
-        if not self._parsed:
-            return False
         return self._impl.isFunction()
 
     @property
     def is_data(self):
         """Whether the symbol describes a variable/data."""
-        if not self._parsed:
-            return False
         return self._impl.isData()
 
     @property
@@ -448,6 +409,4 @@ cdef class ItaniumPartialDemangler:
 
         Examples: vtables, typeinfo, guard variables.
         """
-        if not self._parsed:
-            return False
         return self._impl.isSpecialName()

@@ -22,13 +22,6 @@ llvmdemangle.demangle("_Z3fooi")           # 'foo(int)'
 llvmdemangle.demangle("?foo@@YAHH@Z")      # 'int __cdecl foo(int)'
 ```
 
-CLI:
-
-```bash
-demangle _Z3fooi
-# => foo(int)
-```
-
 ## API reference
 
 ### `LLVM_VERSION`
@@ -104,27 +97,26 @@ Demangle a non-Microsoft symbol (Itanium, Rust, or D). Returns `None` on failure
 
 Get the Arm64EC insertion point in a mangled name. Requires LLVM >= 19.
 
-### `ItaniumPartialDemangler`
+### `ItaniumPartialDemangler(name)`
 
-Parse Itanium C++ symbols into an AST and query individual components.
+Parse Itanium C++ symbols into an AST and query individual components. Raises `ValueError` if the name cannot be parsed.
 
 ```python
-d = llvmdemangle.ItaniumPartialDemangler()
-if d.parse("_ZN3Foo3barIiEEvi"):
-    d.full_name              # 'void Foo::bar<int>(int)'
-    d.function_base_name     # 'bar'
-    d.function_decl_context  # 'Foo'
-    d.function_name          # 'Foo::bar<int>'
-    d.function_parameters    # '(int)'
-    d.function_return_type   # 'void'
-    d.is_function            # True
-    d.is_data                # False
-    d.is_ctor_or_dtor        # False
-    d.is_special_name        # False
-    d.has_function_qualifiers  # False
+d = llvmdemangle.ItaniumPartialDemangler("_ZN3Foo3barIiEEvi")
+d.full_name              # 'void Foo::bar<int>(int)'
+d.function_base_name     # 'bar'
+d.function_decl_context  # 'Foo'
+d.function_name          # 'Foo::bar<int>'
+d.function_parameters    # '(int)'
+d.function_return_type   # 'void'
+d.is_function            # True
+d.is_data                # False
+d.is_ctor_or_dtor        # False
+d.is_special_name        # False
+d.has_function_qualifiers  # False
 ```
 
-All string properties return `None` if the symbol hasn't been parsed or the property doesn't apply. Boolean properties return `False` in that case.
+String properties return `None` when the property doesn't apply (e.g. `function_name` on a data symbol).
 
 ### Version availability
 
