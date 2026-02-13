@@ -2,15 +2,12 @@
 
 Python bindings for the LLVM Demangle library, with vendored LLVM source.
 
-Exposes Itanium, Microsoft, Rust, and D language demanglers, plus `ItaniumPartialDemangler` for querying individual symbol components. No system LLVM installation required.
+Exposes Itanium, Microsoft, Rust, and D language demanglers, plus `ItaniumPartialDemangler` for querying individual symbol components. Ships all LLVM versions 11–21 in a single package with runtime version selection. No system LLVM installation required.
 
 ## Install
 
-Pick the LLVM version you need (11–21):
-
 ```bash
-pip install llvm-demangle-fxti==18.0.0   # LLVM 18
-pip install llvm-demangle-fxti==15.0.0   # LLVM 15
+pip install llvm-demangle-fxti
 ```
 
 ## Quick start
@@ -22,11 +19,39 @@ llvmdemangle.demangle("_Z3fooi")           # 'foo(int)'
 llvmdemangle.demangle("?foo@@YAHH@Z")      # 'int __cdecl foo(int)'
 ```
 
+## Version selection
+
+By default, the highest available LLVM version (21) is used. Use `backend()` to get a specific version:
+
+```python
+import llvmdemangle
+
+# Default (LLVM 21)
+llvmdemangle.demangle("_Z3fooi")
+
+# Use a specific LLVM version
+v18 = llvmdemangle.backend(18)
+v18.demangle("_Z3fooi")
+v18.ItaniumPartialDemangler("_ZN3Foo3barEid")
+v18.LLVM_VERSION  # 18
+
+# See what's available
+llvmdemangle.SUPPORTED_VERSIONS  # [11, 12, 13, ..., 21]
+```
+
 ## API reference
 
 ### `LLVM_VERSION`
 
-Integer constant indicating the LLVM version the module was compiled with (e.g. `18`).
+Integer constant indicating the LLVM version of the default backend (e.g. `21`).
+
+### `SUPPORTED_VERSIONS`
+
+List of all available LLVM backend versions (e.g. `[11, 12, ..., 21]`).
+
+### `backend(llvm_version) -> module`
+
+Return the backend module for a specific LLVM version. The returned module has the same API as the top-level `llvmdemangle` module.
 
 ### `demangle(name) -> str`
 
@@ -131,19 +156,20 @@ String properties return `None` when the property doesn't apply (e.g. `function_
 | `non_microsoft_demangle(parse_params=)` | 18 |
 | `get_arm64ec_insertion_point` | 19 |
 
-Functions unavailable for the compiled LLVM version raise `NotImplementedError`.
+Functions unavailable for the selected LLVM backend raise `NotImplementedError`.
 
 ## Build from source
 
 ```bash
 # 1. Vendor LLVM Demangle source (downloads from GitHub releases)
 python vendor_llvm.py --llvm-version 18
+python vendor_llvm.py --llvm-version 21
 
-# 2. Build & install
-LLVM_VERSION=18 pip install .
+# 2. Build & install (compiles backends for all vendored versions)
+pip install .
 ```
 
-Supported LLVM versions: 11–21.
+Supported LLVM versions: 11–21. Only vendored versions are compiled.
 
 ## License
 

@@ -1,7 +1,7 @@
 # setup.py
 
-import os
-import sys
+import re
+import shutil
 import platform
 from pathlib import Path
 from setuptools import setup, find_packages, Extension
@@ -9,51 +9,75 @@ from setuptools import setup, find_packages, Extension
 this_directory = Path(__file__).parent
 long_description = (this_directory / "README.md").read_text()
 
-# LLVM version from env (default: 15)
-LLVM_MAJOR = int(os.environ.get("LLVM_VERSION", "15"))
-PACKAGE_VERSION = os.environ.get("PACKAGE_VERSION", f"{LLVM_MAJOR}")
+PACKAGE_VERSION = "1.0.0"
 
-# Locate vendored source
-vendor_dir = this_directory / "vendor" / f"llvm{LLVM_MAJOR}"
-vendor_include = vendor_dir / "include"
-vendor_lib = vendor_dir / "lib" / "Demangle"
+# ---------------------------------------------------------------------------
+# Discover all vendored LLVM versions (vendor/llvm11, vendor/llvm12, …)
+# ---------------------------------------------------------------------------
+vendor_root = this_directory / "vendor"
+vendor_versions = sorted(
+    int(d.name.removeprefix("llvm"))
+    for d in vendor_root.iterdir()
+    if d.is_dir() and re.fullmatch(r"llvm\d+", d.name)
+) if vendor_root.is_dir() else []
 
-if not vendor_dir.exists():
+if not vendor_versions:
+    import sys
     print(
-        f"Error: Vendored LLVM {LLVM_MAJOR} not found at {vendor_dir}\n"
-        f"Run: python vendor_llvm.py --llvm-version {LLVM_MAJOR}",
+        "Error: No vendored LLVM directories found under vendor/\n"
+        "Run: python vendor_llvm.py --llvm-version <N>",
         file=sys.stderr,
     )
     sys.exit(1)
 
-# Collect vendored .cpp sources
-llvm_sources = sorted(str(p) for p in vendor_lib.glob("*.cpp"))
-
-# Platform-specific flags
-extra_compile_args = []
-extra_link_args = []
-
+# ---------------------------------------------------------------------------
+# Platform-specific compiler flags (shared across all backends)
+# ---------------------------------------------------------------------------
 if platform.system() == "Windows":
-    extra_compile_args = ["/std:c++17", "/EHsc", f"/DLLVM_MAJOR={LLVM_MAJOR}"]
+    base_compile_args = ["/std:c++17", "/EHsc"]
 else:
-    extra_compile_args = ["-std=c++17", "-fPIC", f"-DLLVM_MAJOR={LLVM_MAJOR}"]
-    if platform.system() == "Darwin":
-        extra_compile_args.append("-stdlib=libc++")
-        extra_link_args.append("-stdlib=libc++")
+    base_compile_args = ["-std=c++17", "-fPIC"]
 
-extensions = [
-    Extension(
-        "llvmdemangle.demangle",
-        sources=["src/llvmdemangle/demangle.pyx"] + llvm_sources,
-        language="c++",
-        include_dirs=[str(vendor_include), "src/llvmdemangle"],
-        extra_compile_args=extra_compile_args,
-        extra_link_args=extra_link_args,
-        depends=["src/llvmdemangle/demangle_shim.h"],
-        define_macros=[("Py_LIMITED_API", "0x03080000")],
-        py_limited_api=True,
-    ),
-]
+extra_link_args = []
+if platform.system() == "Darwin":
+    base_compile_args.append("-stdlib=libc++")
+    extra_link_args.append("-stdlib=libc++")
+
+# ---------------------------------------------------------------------------
+# Generate one Extension per vendored LLVM version
+# ---------------------------------------------------------------------------
+pyx_template = this_directory / "src" / "llvmdemangle" / "demangle.pyx"
+extensions = []
+
+for v in vendor_versions:
+    vendor_dir = vendor_root / f"llvm{v}"
+    vendor_include = vendor_dir / "include"
+    vendor_lib = vendor_dir / "lib" / "Demangle"
+    llvm_sources = sorted(str(p) for p in vendor_lib.glob("*.cpp"))
+
+    # Copy demangle.pyx → _backend_<v>.pyx (Cython needs distinct filenames)
+    backend_pyx = this_directory / "src" / "llvmdemangle" / f"_backend_{v}.pyx"
+    shutil.copy2(pyx_template, backend_pyx)
+
+    compile_args = list(base_compile_args)
+    if platform.system() == "Windows":
+        compile_args.append(f"/DLLVM_MAJOR={v}")
+    else:
+        compile_args.append(f"-DLLVM_MAJOR={v}")
+
+    extensions.append(
+        Extension(
+            f"llvmdemangle._backend_{v}",
+            sources=[str(backend_pyx)] + llvm_sources,
+            language="c++",
+            include_dirs=[str(vendor_include), "src/llvmdemangle"],
+            extra_compile_args=compile_args,
+            extra_link_args=extra_link_args,
+            depends=["src/llvmdemangle/demangle_shim.h"],
+            define_macros=[("Py_LIMITED_API", "0x03080000")],
+            py_limited_api=True,
+        ),
+    )
 
 setup(
     name="llvm-demangle-fxti",

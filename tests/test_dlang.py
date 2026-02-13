@@ -4,11 +4,6 @@ Tests the dlang_demangle() function.
 """
 
 import pytest
-import llvmdemangle
-
-V = llvmdemangle.LLVM_VERSION
-
-pytestmark = pytest.mark.skipif(V < 14, reason="dlang_demangle requires LLVM >= 14")
 
 # From DLangDemangleTest.cpp: INSTANTIATE_TEST_SUITE_P values
 # Each entry: (mangled, expected)  — expected=None means demangling should fail
@@ -57,15 +52,18 @@ class TestDlangDemangle:
         DLANG_TEST_DATA,
         ids=[t[0] for t in DLANG_TEST_DATA],
     )
-    def test_dlang_demangle(self, mangled, expected):
-        result = llvmdemangle.dlang_demangle(mangled)
+    def test_dlang_demangle(self, llvm, mangled, expected):
+        if llvm.LLVM_VERSION < 14:
+            pytest.skip("dlang_demangle requires LLVM >= 14")
+        result = llvm.dlang_demangle(mangled)
         assert result == expected
 
 
 class TestDlangDemangleVersionGuard:
     """Verify NotImplementedError on old LLVM versions."""
 
-    @pytest.mark.skipif(V >= 14, reason="Only test on LLVM < 14")
-    def test_raises_not_implemented(self):
+    def test_raises_not_implemented(self, llvm):
+        if llvm.LLVM_VERSION >= 14:
+            pytest.skip("Only test on LLVM < 14")
         with pytest.raises(NotImplementedError):
-            llvmdemangle.dlang_demangle("_Dmain")
+            llvm.dlang_demangle("_Dmain")

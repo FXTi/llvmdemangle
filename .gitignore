@@ -155,8 +155,10 @@ cython_debug/
 # Vendored LLVM sources (downloaded at build time)
 vendor/
 
-# Cython generated C++
+# Cython generated C++ and auto-generated backend copies
 src/llvmdemangle/demangle.cpp
+src/llvmdemangle/_backend_*.pyx
+src/llvmdemangle/_backend_*.cpp
 
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
