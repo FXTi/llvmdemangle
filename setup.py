@@ -50,6 +50,8 @@ extensions = [
         extra_compile_args=extra_compile_args,
         extra_link_args=extra_link_args,
         depends=["src/llvmdemangle/demangle_shim.h"],
+        define_macros=[("Py_LIMITED_API", "0x03080000")],
+        py_limited_api=True,
     ),
 ]
 
@@ -68,4 +70,5 @@ setup(
     keywords="demangling c++ cxx cpp llvm",
     ext_modules=extensions,
     python_requires=">=3.8",
+    options={"bdist_wheel": {"py_limited_api": "cp38"}},
 )
