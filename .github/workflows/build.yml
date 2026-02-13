@@ -92,9 +92,38 @@ jobs:
           name: sdist-llvm${{ matrix.llvm_version }}
           path: dist/*.tar.gz
 
+  test:
+    name: Test (LLVM ${{ matrix.llvm_version }}, ${{ matrix.os }})
+    needs: vendor
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        llvm_version: [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
+        os: [ubuntu-latest, macos-14, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: vendor-llvm${{ matrix.llvm_version }}
+          path: vendor/
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          allow-prereleases: true
+      - name: Install build deps and package
+        env:
+          LLVM_VERSION: ${{ matrix.llvm_version }}
+          PACKAGE_VERSION: "${{ matrix.llvm_version }}"
+        run: |
+          pip install "Cython>=3.0" "setuptools>=64" wheel pytest
+          pip install --no-build-isolation .
+      - name: Run tests
+        run: pytest tests -v
+
   publish:
     name: Publish to PyPI
-    needs: [build_wheels, build_sdist]
+    needs: [build_wheels, build_sdist, test]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:

@@ -34,9 +34,9 @@ extra_compile_args = []
 extra_link_args = []
 
 if platform.system() == "Windows":
-    extra_compile_args = ["/std:c++17", "/EHsc"]
+    extra_compile_args = ["/std:c++17", "/EHsc", f"/DLLVM_MAJOR={LLVM_MAJOR}"]
 else:
-    extra_compile_args = ["-std=c++17", "-fPIC"]
+    extra_compile_args = ["-std=c++17", "-fPIC", f"-DLLVM_MAJOR={LLVM_MAJOR}"]
     if platform.system() == "Darwin":
         extra_compile_args.append("-stdlib=libc++")
         extra_link_args.append("-stdlib=libc++")
@@ -46,33 +46,26 @@ extensions = [
         "llvmdemangle.demangle",
         sources=["src/llvmdemangle/demangle.pyx"] + llvm_sources,
         language="c++",
-        include_dirs=[str(vendor_include)],
+        include_dirs=[str(vendor_include), "src/llvmdemangle"],
         extra_compile_args=extra_compile_args,
         extra_link_args=extra_link_args,
+        depends=["src/llvmdemangle/demangle_shim.h"],
     ),
 ]
 
 setup(
     name="llvm-demangle-fxti",
     version=PACKAGE_VERSION,
-    description="Python wrapper around llvm::demangle, with vendored LLVM Demangle.",
+    description="Python bindings for the LLVM Demangle library, with vendored LLVM source.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     license="0BSD AND Apache-2.0 WITH LLVM-exception",
-    author="MNayer",
-    author_email="marie.nayer@web.de",
+    author="FXTi",
+    author_email="fx.ti@outlook.com",
     packages=find_packages("src"),
     package_dir={"": "src"},
-    url="https://github.com/MNayer/llvmdemangle",
+    url="https://github.com/FXTi/llvmdemangle/tree/master",
     keywords="demangling c++ cxx cpp llvm",
-    install_requires=[
-        "click",
-    ],
     ext_modules=extensions,
-    entry_points={
-        "console_scripts": [
-            "demangle = llvmdemangle.tools:demangle",
-        ],
-    },
     python_requires=">=3.8",
 )

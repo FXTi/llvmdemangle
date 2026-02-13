@@ -2,4 +2,5 @@ include vendor_llvm.py
 include LLVM_LICENSE.txt
 include LICENSE.txt
 include README.md
+recursive-include src *.pyx *.h
 recursive-include vendor *.cpp *.h *.def *.txt
