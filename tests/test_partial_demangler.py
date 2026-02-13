@@ -35,9 +35,9 @@ NAME_CHOPPING_DATA = [
     ("_ZN1SC2B8ctor_tagEv", "S", "S", "", "()"),
     ("_ZN1S1fB4MERPIiEEvv", "S", "f", "void", "()"),
     ("_ZNSsC1EmcRKSaIcE",
-     # LLVM < 16 outputs "> >" (with space), LLVM >= 16 outputs ">>"
+     # LLVM >= 15 outputs ">>" (no space), LLVM < 15 outputs "> >" (with space)
      "std::basic_string<char, std::char_traits<char>, std::allocator<char>>"
-     if V >= 16 else
+     if V >= 15 else
      "std::basic_string<char, std::char_traits<char>, std::allocator<char> >",
      "basic_string", "",
      "(unsigned long, char, std::allocator<char> const&)"),

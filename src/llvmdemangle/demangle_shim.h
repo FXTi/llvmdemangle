@@ -64,9 +64,7 @@ inline char *shim_microsoft_demangle(const char *name, int flags,
 // Returns malloc'd string or nullptr. Caller must free().
 // Returns (char*)-1 sentinel when feature is unavailable.
 inline char *shim_rust_demangle(const char *name) {
-#if LLVM_MAJOR >= 17
-    return llvm::rustDemangle(name);
-#elif LLVM_MAJOR >= 14
+#if LLVM_MAJOR >= 15
     return llvm::rustDemangle(name);
 #elif LLVM_MAJOR >= 13
     return llvm::rustDemangle(name, nullptr, nullptr, nullptr);
@@ -126,7 +124,7 @@ inline long long shim_get_arm64ec_insertion_point(const char *name) {
 #if LLVM_MAJOR >= 19
     auto result = llvm::getArm64ECInsertionPointInMangledName(name);
     if (result.has_value())
-        return static_cast<long long>(result.value());
+        return static_cast<long long>(*result);
     return -1;
 #else
     (void)name;

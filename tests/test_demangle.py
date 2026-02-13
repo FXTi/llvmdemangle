@@ -39,7 +39,7 @@ class TestDemangle:
     def test_rust(self):
         assert llvmdemangle.demangle("_RNvC3foo3bar") == "foo::bar"
 
-    @pytest.mark.skipif(V < 13, reason="rust_demangle requires LLVM >= 13")
+    @pytest.mark.skipif(V < 15, reason="__R prefix for Rust requires LLVM >= 15")
     def test_rust_double_underscore(self):
         assert llvmdemangle.demangle("__RNvC3foo3bar") == "foo::bar"
 
